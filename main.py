@@ -14,7 +14,7 @@ from reportlab.lib.units import mm
 
 st.set_page_config(page_title="Barcode Generator", layout="wide")
 
-st.title("📦 A4 Barcode Label Generator")
+st.title("📦 Barcode Generator (A4 Label Sheet)")
 
 uploaded_file = st.file_uploader(
     "Upload TXT/CSV (one ID per line)",
@@ -33,7 +33,7 @@ generate = st.button("Generate PDF")
 
 
 # =========================================================
-# DOTTED CUT LINES
+# DOTTED CUT LINE
 # =========================================================
 
 def dotted_line(c, x1, y1, x2, y2, dash=2 * mm, gap=2 * mm):
@@ -111,33 +111,36 @@ def generate_pdf(ids, rows, cols):
             # AVAILABLE SPACE
             # -----------------------------------------
 
-            max_w = cell_w * 0.95
+            max_w = cell_w * 0.96
             max_h = cell_h * 0.55
 
             # -----------------------------------------
-            # BARCODE (STABLE VERSION)
+            # BARCODE (FIXED LOGIC)
             # -----------------------------------------
 
             barcode = code128.Code128(
                 value,
                 barHeight=max_h,
-                barWidth=0.25   # stable density (DO NOT over-tune)
+                barWidth=0.25
             )
 
             bw = barcode.width
             bh = barcode.height
 
-            # ONLY SCALE DOWN IF REQUIRED
+            # WIDTH-FIRST FIT (correct logic)
             scale_x = max_w / bw
             scale_y = max_h / bh
 
-            scale = min(scale_x, scale_y, 1.0)
+            scale = min(scale_x, scale_y)
+
+            # DO NOT shrink unnecessarily
+            scale = min(scale, 1.0)
 
             final_w = bw * scale
             final_h = bh * scale
 
             # -----------------------------------------
-            # CENTERING
+            # CENTER POSITION
             # -----------------------------------------
 
             bx = x0 + (cell_w - final_w) / 2
@@ -174,7 +177,7 @@ def generate_pdf(ids, rows, cols):
 
 
 # =========================================================
-# RUN
+# RUN APP
 # =========================================================
 
 if generate:
@@ -185,7 +188,7 @@ if generate:
 
     content = uploaded_file.read().decode("utf-8")
 
-    ids = [x.strip() for x in content.splitlines() if x.strip()]
+    ids = [i.strip() for i in content.splitlines() if i.strip()]
 
     if not ids:
         st.error("No IDs found")
