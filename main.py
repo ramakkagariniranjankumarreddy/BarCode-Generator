@@ -1,20 +1,41 @@
 import streamlit as st
-from barcode import Code128
-from barcode.writer import ImageWriter
-from PIL import Image
 from io import BytesIO
-from reportlab.pdfgen import canvas
-from reportlab.lib.utils import ImageReader
 import math
-import tempfile
-import os
 
-st.set_page_config(page_title="Barcode PDF Generator", layout="wide")
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from reportlab.graphics.barcode import code128
+from reportlab.lib.units import mm
 
-st.title("Multi-Page Barcode Sheet Generator")
+# ============================================================
+# PAGE CONFIG
+# ============================================================
+
+st.set_page_config(
+    page_title="Barcode Sheet Generator",
+    layout="wide"
+)
+
+st.title("📦 Barcode Sheet Generator")
+
+st.markdown(
+    """
+Upload a TXT/CSV file containing one ID per line.
+
+Example:
+
+H1100022867  
+H1100022868  
+H1100022869
+"""
+)
+
+# ============================================================
+# INPUTS
+# ============================================================
 
 uploaded_file = st.file_uploader(
-    "Upload TXT/CSV File (one ID per line)",
+    "Upload TXT/CSV",
     type=["txt", "csv"]
 )
 
@@ -22,7 +43,7 @@ col1, col2 = st.columns(2)
 
 with col1:
     rows = st.number_input(
-        "Rows per page",
+        "Rows",
         min_value=1,
         max_value=50,
         value=8
@@ -30,125 +51,225 @@ with col1:
 
 with col2:
     cols = st.number_input(
-        "Columns per page",
+        "Columns",
         min_value=1,
         max_value=20,
         value=3
     )
 
-generate_btn = st.button("Generate PDF")
+generate = st.button("Generate PDF")
 
 
-# --------------------------------------------------
-# Barcode Generator
-# --------------------------------------------------
-def create_barcode(code):
+# ============================================================
+# DOTTED LINE
+# ============================================================
 
-    buffer = BytesIO()
+def draw_dotted_line(c, x1, y1, x2, y2,
+                     dash_length=2 * mm,
+                     gap_length=1 * mm):
 
-    barcode = Code128(
-        str(code),
-        writer=ImageWriter()
-    )
+    if abs(x1 - x2) < 0.1:
+        y = y1
 
-    barcode.write(
-        buffer,
-        options={
-            "module_width": 0.25,
-            "module_height": 18,
-            "font_size": 10,
-            "text_distance": 2,
-            "quiet_zone": 2
-        }
-    )
+        while y < y2:
+            c.line(
+                x1,
+                y,
+                x2,
+                min(y + dash_length, y2)
+            )
 
-    buffer.seek(0)
+            y += dash_length + gap_length
 
-    img = Image.open(buffer).convert("RGB")
+    elif abs(y1 - y2) < 0.1:
 
-    return img
+        x = x1
+
+        while x < x2:
+            c.line(
+                x,
+                y1,
+                min(x + dash_length, x2),
+                y2
+            )
+
+            x += dash_length + gap_length
 
 
-# --------------------------------------------------
-# PDF Creator
-# --------------------------------------------------
-def create_pdf(ids, rows, cols):
+# ============================================================
+# PDF GENERATOR
+# ============================================================
+
+def generate_pdf(ids, rows, cols):
 
     pdf_buffer = BytesIO()
 
-    # A4 size in points
-    PAGE_WIDTH = 595
-    PAGE_HEIGHT = 842
+    page_width, page_height = A4
 
-    margin = 20
+    c = canvas.Canvas(
+        pdf_buffer,
+        pagesize=A4
+    )
 
-    cell_width = (PAGE_WIDTH - 2 * margin) / cols
-    cell_height = (PAGE_HEIGHT - 2 * margin) / rows
+    # margins
+    margin = 10 * mm
 
-    c = canvas.Canvas(pdf_buffer, pagesize=(PAGE_WIDTH, PAGE_HEIGHT))
+    usable_width = page_width - (2 * margin)
+    usable_height = page_height - (2 * margin)
 
-    page_capacity = rows * cols
+    cell_width = usable_width / cols
+    cell_height = usable_height / rows
 
-    total_pages = math.ceil(len(ids) / page_capacity)
+    labels_per_page = rows * cols
 
-    current_index = 0
+    total_pages = math.ceil(
+        len(ids) / labels_per_page
+    )
 
-    for page_no in range(total_pages):
+    current_idx = 0
 
-        # Draw cut lines
-        for col in range(cols + 1):
-            x = margin + col * cell_width
+    for page in range(total_pages):
 
-            c.line(
+        # ------------------------------------------------
+        # Internal vertical dotted cut lines
+        # ------------------------------------------------
+
+        for col in range(1, cols):
+
+            x = margin + (col * cell_width)
+
+            draw_dotted_line(
+                c,
                 x,
                 margin,
                 x,
-                PAGE_HEIGHT - margin
+                page_height - margin
             )
 
-        for row in range(rows + 1):
-            y = margin + row * cell_height
+        # ------------------------------------------------
+        # Internal horizontal dotted cut lines
+        # ------------------------------------------------
 
-            c.line(
+        for row in range(1, rows):
+
+            y = margin + (row * cell_height)
+
+            draw_dotted_line(
+                c,
                 margin,
                 y,
-                PAGE_WIDTH - margin,
+                page_width - margin,
                 y
             )
 
-        for slot in range(page_capacity):
+        # ------------------------------------------------
+        # Draw labels
+        # ------------------------------------------------
 
-            if current_index >= len(ids):
+        for slot in range(labels_per_page):
+
+            if current_idx >= len(ids):
                 break
 
-            barcode_img = create_barcode(ids[current_index])
+            value = ids[current_idx]
 
-            tmp = BytesIO()
-            barcode_img.save(tmp, format="PNG")
-            tmp.seek(0)
+            row_no = slot // cols
+            col_no = slot % cols
 
-            row_num = slot // cols
-            col_num = slot % cols
+            x0 = margin + (col_no * cell_width)
 
-            x0 = margin + col_num * cell_width
-            y0 = PAGE_HEIGHT - margin - ((row_num + 1) * cell_height)
-
-            barcode_width = cell_width * 0.85
-            barcode_height = cell_height * 0.60
-
-            img_x = x0 + (cell_width - barcode_width) / 2
-            img_y = y0 + (cell_height - barcode_height) / 2
-
-            c.drawImage(
-                ImageReader(tmp),
-                img_x,
-                img_y,
-                width=barcode_width,
-                height=barcode_height,
-                preserveAspectRatio=True
+            y0 = (
+                page_height
+                - margin
+                - ((row_no + 1) * cell_height)
             )
 
-            current_index += 1
+            # ----------------------------------------
+            # Padding
+            # ----------------------------------------
+
+            padding_x = cell_width * 0.08
+            padding_y = cell_height * 0.08
+
+            # ----------------------------------------
+            # Barcode
+            # ----------------------------------------
+
+            barcode = code128.Code128(
+                value,
+                barHeight=cell_height * 0.35,
+                barWidth=0.45
+            )
+
+            barcode_width = barcode.width
+
+            available_width = (
+                cell_width
+                - (2 * padding_x)
+            )
+
+            scale = min(
+                1.0,
+                available_width / barcode_width
+            )
+
+            barcode_x = (
+                x0
+                + (cell_width / 2)
+                - ((barcode_width * scale) / 2)
+            )
+
+            barcode_y = (
+                y0
+                + (cell_height * 0.35)
+            )
+
+            c.saveState()
+
+            c.translate(
+                barcode_x,
+                barcode_y
+            )
+
+            c.scale(
+                scale,
+                scale
+            )
+
+            barcode.drawOn(
+                c,
+                0,
+                0
+            )
+
+            c.restoreState()
+
+            # ----------------------------------------
+            # Human readable text
+            # ----------------------------------------
+
+            font_size = max(
+                6,
+                min(
+                    10,
+                    cell_height / 8
+                )
+            )
+
+            c.setFont(
+                "Helvetica",
+                font_size
+            )
+
+            text_y = y0 + (cell_height * 0.15)
+
+            c.drawCentredString(
+                x0 + (cell_width / 2),
+                text_y,
+                value
+            )
+
+            current_idx += 1
 
         c.showPage()
 
@@ -159,16 +280,23 @@ def create_pdf(ids, rows, cols):
     return pdf_buffer
 
 
-# --------------------------------------------------
-# Process
-# --------------------------------------------------
-if generate_btn:
+# ============================================================
+# PROCESS
+# ============================================================
+
+if generate:
 
     if uploaded_file is None:
-        st.error("Upload a file first.")
+
+        st.error(
+            "Please upload a file."
+        )
+
         st.stop()
 
-    content = uploaded_file.read().decode("utf-8")
+    content = uploaded_file.read().decode(
+        "utf-8"
+    )
 
     ids = [
         line.strip()
@@ -177,24 +305,46 @@ if generate_btn:
     ]
 
     if not ids:
-        st.error("No IDs found.")
+
+        st.error(
+            "No IDs found in file."
+        )
+
         st.stop()
 
-    page_capacity = rows * cols
-    total_pages = math.ceil(len(ids) / page_capacity)
+    capacity = rows * cols
 
-    st.success(
-        f"{len(ids)} IDs loaded. "
-        f"Will generate {total_pages} A4 page(s)."
+    pages = math.ceil(
+        len(ids) / capacity
     )
 
-    with st.spinner("Generating PDF..."):
+    st.info(
+        f"""
+Loaded {len(ids)} IDs
 
-        pdf_data = create_pdf(ids, rows, cols)
+Labels per page: {capacity}
+
+Pages required: {pages}
+"""
+    )
+
+    with st.spinner(
+        "Generating PDF..."
+    ):
+
+        pdf = generate_pdf(
+            ids,
+            rows,
+            cols
+        )
+
+    st.success(
+        "PDF generated successfully."
+    )
 
     st.download_button(
-        label="📄 Download Barcode PDF",
-        data=pdf_data,
+        label="📄 Download PDF",
+        data=pdf,
         file_name="barcode_labels.pdf",
         mime="application/pdf"
     )
