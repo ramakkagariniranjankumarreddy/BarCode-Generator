@@ -77,7 +77,7 @@ def generate_pdf(ids, rows, cols):
     for _ in range(pages):
 
         # ============================
-        # CUT LINES (internal only)
+        # CUT LINES
         # ============================
 
         c.setLineWidth(0.3)
@@ -115,25 +115,23 @@ def generate_pdf(ids, rows, cols):
             max_h = cell_h * 0.55
 
             # -----------------------------------------
-            # IMPROVED BARCODE FIT (KEY FIX)
+            # BARCODE (STABLE VERSION)
             # -----------------------------------------
 
             barcode = code128.Code128(
                 value,
                 barHeight=max_h,
-                barWidth=0.18   # slightly tighter bars → wider final output
+                barWidth=0.25   # stable density (DO NOT over-tune)
             )
 
             bw = barcode.width
             bh = barcode.height
 
-            # Small fill boost to reduce visible empty space
-            FILL_FACTOR = 1.06
+            # ONLY SCALE DOWN IF REQUIRED
+            scale_x = max_w / bw
+            scale_y = max_h / bh
 
-            scale = (max_w * FILL_FACTOR) / bw
-
-            # height safety clamp
-            scale = min(scale, max_h / bh)
+            scale = min(scale_x, scale_y, 1.0)
 
             final_w = bw * scale
             final_h = bh * scale
@@ -176,7 +174,7 @@ def generate_pdf(ids, rows, cols):
 
 
 # =========================================================
-# RUN APP
+# RUN
 # =========================================================
 
 if generate:
