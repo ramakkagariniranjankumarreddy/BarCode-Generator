@@ -9,7 +9,7 @@ from reportlab.lib import colors
 
 
 # -----------------------------
-# Read uploaded file
+# Read file (CSV/TXT)
 # -----------------------------
 def read_ids(uploaded_file):
     if uploaded_file.name.endswith(".csv"):
@@ -55,7 +55,6 @@ def generate_pdf(ids, cols, rows):
 
         pos = idx % items_per_page
 
-        # new page
         if idx > 0 and pos == 0:
             draw_cut_lines()
             c.showPage()
@@ -67,36 +66,26 @@ def generate_pdf(ids, cols, rows):
         y = page_height - (row + 1) * cell_height
 
         # -----------------------------
-        # Layout spacing (IMPORTANT)
+        # Barcode (centered perfectly)
         # -----------------------------
-        top_padding = cell_height * 0.10
-        bottom_padding = cell_height * 0.10
-
-        usable_height = cell_height - (top_padding + bottom_padding)
-
-        # -----------------------------
-        # Barcode
-        # -----------------------------
-        barcode_height = cell_height * 0.55
-
         barcode = code128.Code128(
             id_value,
-            barHeight=barcode_height,
+            barHeight=cell_height * 0.55,
             barWidth=1.1
         )
 
         barcode_x = x + (cell_width - barcode.width) / 2
-        barcode_y = y + bottom_padding + (usable_height * 0.45)
+        barcode_y = y + (cell_height - barcode.height) / 2 + 5
 
         barcode.drawOn(c, barcode_x, barcode_y)
 
         # -----------------------------
-        # Human-readable text
+        # ID text (centered below barcode)
         # -----------------------------
         c.setFont("Helvetica", 8)
         c.setFillColor(colors.black)
 
-        text_y = y + bottom_padding + 5
+        text_y = barcode_y - 12
 
         c.drawCentredString(
             x + cell_width / 2,
@@ -104,7 +93,6 @@ def generate_pdf(ids, cols, rows):
             id_value
         )
 
-    # final page cut lines
     draw_cut_lines()
     c.save()
 
