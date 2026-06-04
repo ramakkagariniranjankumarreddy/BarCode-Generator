@@ -7,9 +7,9 @@ from reportlab.lib.pagesizes import A4
 from reportlab.graphics.barcode import code128
 from reportlab.lib.units import mm
 
-# ============================================================
+# ==========================================================
 # PAGE CONFIG
-# ============================================================
+# ==========================================================
 
 st.set_page_config(
     page_title="Barcode Sheet Generator",
@@ -18,30 +18,28 @@ st.set_page_config(
 
 st.title("📦 Barcode Sheet Generator")
 
-st.markdown(
-    """
-Upload a TXT/CSV file containing one ID per line.
+st.markdown("""
+Upload a TXT or CSV file with one ID per line.
 
 Example:
 
-H1100022867  
-H1100022868  
+H1100022867
+H1100022868
 H1100022869
-"""
-)
+""")
 
-# ============================================================
+# ==========================================================
 # INPUTS
-# ============================================================
+# ==========================================================
 
 uploaded_file = st.file_uploader(
-    "Upload TXT/CSV",
+    "Upload TXT / CSV",
     type=["txt", "csv"]
 )
 
-col1, col2 = st.columns(2)
+c1, c2 = st.columns(2)
 
-with col1:
+with c1:
     rows = st.number_input(
         "Rows",
         min_value=1,
@@ -49,7 +47,7 @@ with col1:
         value=8
     )
 
-with col2:
+with c2:
     cols = st.number_input(
         "Columns",
         min_value=1,
@@ -57,17 +55,41 @@ with col2:
         value=3
     )
 
-generate = st.button("Generate PDF")
+st.subheader("Barcode Fit Settings")
 
+c3, c4 = st.columns(2)
 
-# ============================================================
+with c3:
+    barcode_width_pct = st.slider(
+        "Barcode Width %",
+        min_value=50,
+        max_value=95,
+        value=90
+    )
+
+with c4:
+    barcode_height_pct = st.slider(
+        "Barcode Height %",
+        min_value=20,
+        max_value=70,
+        value=40
+    )
+
+generate_btn = st.button("Generate PDF")
+
+# ==========================================================
 # DOTTED LINE
-# ============================================================
+# ==========================================================
 
-def draw_dotted_line(c, x1, y1, x2, y2,
-                     dash_length=2 * mm,
-                     gap_length=1 * mm):
-
+def draw_dotted_line(
+    c,
+    x1,
+    y1,
+    x2,
+    y2,
+    dash=2 * mm,
+    gap=1 * mm
+):
     if abs(x1 - x2) < 0.1:
         y = y1
 
@@ -76,42 +98,43 @@ def draw_dotted_line(c, x1, y1, x2, y2,
                 x1,
                 y,
                 x2,
-                min(y + dash_length, y2)
+                min(y + dash, y2)
             )
+            y += dash + gap
 
-            y += dash_length + gap_length
-
-    elif abs(y1 - y2) < 0.1:
-
+    else:
         x = x1
 
         while x < x2:
             c.line(
                 x,
                 y1,
-                min(x + dash_length, x2),
+                min(x + dash, x2),
                 y2
             )
+            x += dash + gap
 
-            x += dash_length + gap_length
-
-
-# ============================================================
+# ==========================================================
 # PDF GENERATOR
-# ============================================================
+# ==========================================================
 
-def generate_pdf(ids, rows, cols):
+def generate_pdf(
+    ids,
+    rows,
+    cols,
+    barcode_width_pct,
+    barcode_height_pct
+):
 
-    pdf_buffer = BytesIO()
+    buffer = BytesIO()
 
     page_width, page_height = A4
 
-    c = canvas.Canvas(
-        pdf_buffer,
+    pdf = canvas.Canvas(
+        buffer,
         pagesize=A4
     )
 
-    # margins
     margin = 10 * mm
 
     usable_width = page_width - (2 * margin)
@@ -130,41 +153,41 @@ def generate_pdf(ids, rows, cols):
 
     for page in range(total_pages):
 
-        # ------------------------------------------------
-        # Internal vertical dotted cut lines
-        # ------------------------------------------------
+        # ==========================================
+        # DOTTED CUT LINES
+        # ==========================================
 
+        pdf.setLineWidth(0.3)
+
+        # Internal vertical lines
         for col in range(1, cols):
 
-            x = margin + (col * cell_width)
+            x = margin + col * cell_width
 
             draw_dotted_line(
-                c,
+                pdf,
                 x,
                 margin,
                 x,
                 page_height - margin
             )
 
-        # ------------------------------------------------
-        # Internal horizontal dotted cut lines
-        # ------------------------------------------------
-
+        # Internal horizontal lines
         for row in range(1, rows):
 
-            y = margin + (row * cell_height)
+            y = margin + row * cell_height
 
             draw_dotted_line(
-                c,
+                pdf,
                 margin,
                 y,
                 page_width - margin,
                 y
             )
 
-        # ------------------------------------------------
-        # Draw labels
-        # ------------------------------------------------
+        # ==========================================
+        # LABELS
+        # ==========================================
 
         for slot in range(labels_per_page):
 
@@ -173,50 +196,68 @@ def generate_pdf(ids, rows, cols):
 
             value = ids[current_idx]
 
-            row_no = slot // cols
-            col_no = slot % cols
+            row_num = slot // cols
+            col_num = slot % cols
 
-            x0 = margin + (col_no * cell_width)
+            x0 = margin + col_num * cell_width
 
             y0 = (
                 page_height
                 - margin
-                - ((row_no + 1) * cell_height)
+                - ((row_num + 1) * cell_height)
             )
 
-            # ----------------------------------------
-            # Padding
-            # ----------------------------------------
+            # ----------------------------------
+            # Cell Padding
+            # ----------------------------------
 
-            padding_x = cell_width * 0.08
-            padding_y = cell_height * 0.08
+            pad_x = cell_width * 0.03
+            pad_y = cell_height * 0.03
 
-            # ----------------------------------------
-            # Barcode
-            # ----------------------------------------
+            # ----------------------------------
+            # Desired Barcode Area
+            # ----------------------------------
+
+            target_width = (
+                cell_width
+                * barcode_width_pct
+                / 100
+            )
+
+            target_height = (
+                cell_height
+                * barcode_height_pct
+                / 100
+            )
+
+            # ----------------------------------
+            # Initial Barcode
+            # ----------------------------------
 
             barcode = code128.Code128(
                 value,
-                barHeight=cell_height * 0.35,
-                barWidth=0.45
+                barWidth=0.5,
+                barHeight=target_height
             )
 
-            barcode_width = barcode.width
+            original_width = barcode.width
+            original_height = barcode.height
 
-            available_width = (
-                cell_width
-                - (2 * padding_x)
-            )
+            scale_x = target_width / original_width
+            scale_y = target_height / original_height
 
-            scale = min(
-                1.0,
-                available_width / barcode_width
-            )
+            scale = min(scale_x, scale_y)
+
+            final_width = original_width * scale
+            final_height = original_height * scale
+
+            # ----------------------------------
+            # Center Barcode
+            # ----------------------------------
 
             barcode_x = (
                 x0
-                + (cell_width / 2)
-                - ((barcode_width * scale) / 2)
+                + (cell_width - final_width) / 2
             )
 
             barcode_y = (
@@ -224,29 +265,29 @@ def generate_pdf(ids, rows, cols):
                 + (cell_height * 0.35)
             )
 
-            c.saveState()
+            pdf.saveState()
 
-            c.translate(
+            pdf.translate(
                 barcode_x,
                 barcode_y
             )
 
-            c.scale(
+            pdf.scale(
                 scale,
                 scale
             )
 
             barcode.drawOn(
-                c,
+                pdf,
                 0,
                 0
             )
 
-            c.restoreState()
+            pdf.restoreState()
 
-            # ----------------------------------------
-            # Human readable text
-            # ----------------------------------------
+            # ----------------------------------
+            # Human Readable Text
+            # ----------------------------------
 
             font_size = max(
                 6,
@@ -256,14 +297,14 @@ def generate_pdf(ids, rows, cols):
                 )
             )
 
-            c.setFont(
+            pdf.setFont(
                 "Helvetica",
                 font_size
             )
 
             text_y = y0 + (cell_height * 0.15)
 
-            c.drawCentredString(
+            pdf.drawCentredString(
                 x0 + (cell_width / 2),
                 text_y,
                 value
@@ -271,80 +312,76 @@ def generate_pdf(ids, rows, cols):
 
             current_idx += 1
 
-        c.showPage()
+        pdf.showPage()
 
-    c.save()
+    pdf.save()
 
-    pdf_buffer.seek(0)
+    buffer.seek(0)
 
-    return pdf_buffer
+    return buffer
 
-
-# ============================================================
+# ==========================================================
 # PROCESS
-# ============================================================
+# ==========================================================
 
-if generate:
+if generate_btn:
 
     if uploaded_file is None:
-
-        st.error(
-            "Please upload a file."
-        )
-
+        st.error("Please upload a file.")
         st.stop()
 
-    content = uploaded_file.read().decode(
-        "utf-8"
-    )
+    try:
 
-    ids = [
-        line.strip()
-        for line in content.splitlines()
-        if line.strip()
-    ]
-
-    if not ids:
-
-        st.error(
-            "No IDs found in file."
+        content = uploaded_file.read().decode(
+            "utf-8"
         )
 
-        st.stop()
+        ids = [
+            line.strip()
+            for line in content.splitlines()
+            if line.strip()
+        ]
 
-    capacity = rows * cols
+        if len(ids) == 0:
+            st.error("No IDs found.")
+            st.stop()
 
-    pages = math.ceil(
-        len(ids) / capacity
-    )
+        labels_per_page = rows * cols
 
-    st.info(
-        f"""
-Loaded {len(ids)} IDs
+        total_pages = math.ceil(
+            len(ids) / labels_per_page
+        )
 
-Labels per page: {capacity}
+        st.info(
+            f"""
+IDs Loaded: {len(ids)}
 
-Pages required: {pages}
+Labels Per Page: {labels_per_page}
+
+Pages Required: {total_pages}
 """
-    )
-
-    with st.spinner(
-        "Generating PDF..."
-    ):
-
-        pdf = generate_pdf(
-            ids,
-            rows,
-            cols
         )
 
-    st.success(
-        "PDF generated successfully."
-    )
+        with st.spinner(
+            "Generating PDF..."
+        ):
 
-    st.download_button(
-        label="📄 Download PDF",
-        data=pdf,
-        file_name="barcode_labels.pdf",
-        mime="application/pdf"
-    )
+            pdf_data = generate_pdf(
+                ids,
+                rows,
+                cols,
+                barcode_width_pct,
+                barcode_height_pct
+            )
+
+        st.success("PDF generated successfully.")
+
+        st.download_button(
+            label="📄 Download Barcode PDF",
+            data=pdf_data,
+            file_name="barcode_labels.pdf",
+            mime="application/pdf"
+        )
+
+    except Exception as e:
+        st.error(str(e))
