@@ -14,7 +14,7 @@ from reportlab.lib.units import mm
 
 st.set_page_config(page_title="Barcode Generator", layout="wide")
 
-st.title("📦 Barcode Label Generator (A4 Print Ready)")
+st.title("📦 A4 Barcode Label Generator")
 
 uploaded_file = st.file_uploader(
     "Upload TXT/CSV (one ID per line)",
@@ -33,7 +33,7 @@ generate = st.button("Generate PDF")
 
 
 # =========================================================
-# DOTTED CUT LINES
+# DOTTED LINE (CUT MARKS)
 # =========================================================
 
 def dotted_line(c, x1, y1, x2, y2, dash=2 * mm, gap=2 * mm):
@@ -77,7 +77,7 @@ def generate_pdf(ids, rows, cols):
     for _ in range(pages):
 
         # ============================
-        # CUT LINES (internal only)
+        # CUT LINES (ONLY INTERNAL)
         # ============================
 
         c.setLineWidth(0.3)
@@ -107,44 +107,41 @@ def generate_pdf(ids, rows, cols):
             x0 = margin + col * cell_w
             y0 = page_h - margin - (r + 1) * cell_h
 
-            # -----------------------------------
-            # AVAILABLE SPACE
-            # -----------------------------------
+            # -----------------------------------------
+            # AVAILABLE SPACE INSIDE CELL
+            # -----------------------------------------
 
-            max_w = cell_w * 0.92
-            max_h = cell_h * 0.55
+            max_w = cell_w * 0.95   # almost full width
+            max_h = cell_h * 0.55   # safe height
 
-            # -----------------------------------
-            # FORCE FULL WIDTH FILL (KEY FIX)
-            # -----------------------------------
-
-            estimated_modules = max(len(value) * 11, 10)
-
-            module_width = max_w / estimated_modules
-
-            module_width = max(0.25, min(module_width, 1.2))
+            # -----------------------------------------
+            # FORCE FULL WIDTH BARCODE (CORE FIX)
+            # -----------------------------------------
 
             barcode = code128.Code128(
                 value,
                 barHeight=max_h,
-                barWidth=module_width
+                barWidth=0.2  # start small, we scale later
             )
 
             bw = barcode.width
             bh = barcode.height
 
-            # safety scaling
-            scale = min(max_w / bw, max_h / bh)
+            # WIDTH-FIRST SCALING (KEY IDEA)
+            scale = max_w / bw
+
+            # HEIGHT SAFETY CLAMP
+            scale = min(scale, max_h / bh)
 
             final_w = bw * scale
             final_h = bh * scale
 
-            # -----------------------------------
-            # CENTER BARCODE
-            # -----------------------------------
+            # -----------------------------------------
+            # CENTERING
+            # -----------------------------------------
 
             bx = x0 + (cell_w - final_w) / 2
-            by = y0 + (cell_h - final_h) / 2 + (cell_h * 0.05)
+            by = y0 + (cell_h - final_h) / 2 + (cell_h * 0.04)
 
             c.saveState()
             c.translate(bx, by)
@@ -152,9 +149,9 @@ def generate_pdf(ids, rows, cols):
             barcode.drawOn(c, 0, 0)
             c.restoreState()
 
-            # -----------------------------------
+            # -----------------------------------------
             # TEXT
-            # -----------------------------------
+            # -----------------------------------------
 
             font_size = max(6, min(10, cell_h / 10))
 
@@ -172,11 +169,12 @@ def generate_pdf(ids, rows, cols):
 
     c.save()
     buffer.seek(0)
+
     return buffer
 
 
 # =========================================================
-# RUN
+# RUN APP
 # =========================================================
 
 if generate:
@@ -208,7 +206,7 @@ Pages: {pages}
 
         pdf = generate_pdf(ids, rows, cols)
 
-    st.success("Done!")
+    st.success("PDF generated successfully!")
 
     st.download_button(
         "Download PDF",
