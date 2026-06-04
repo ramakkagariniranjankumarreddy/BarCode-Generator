@@ -53,7 +53,6 @@ def generate_pdf(ids, cols, rows):
 
     for idx, id_value in enumerate(ids):
 
-        page_index = idx // items_per_page
         pos = idx % items_per_page
 
         # new page
@@ -68,32 +67,44 @@ def generate_pdf(ids, cols, rows):
         y = page_height - (row + 1) * cell_height
 
         # -----------------------------
+        # Layout spacing (IMPORTANT)
+        # -----------------------------
+        top_padding = cell_height * 0.10
+        bottom_padding = cell_height * 0.10
+
+        usable_height = cell_height - (top_padding + bottom_padding)
+
+        # -----------------------------
         # Barcode
         # -----------------------------
+        barcode_height = cell_height * 0.55
+
         barcode = code128.Code128(
             id_value,
-            barHeight=cell_height * 0.60,
+            barHeight=barcode_height,
             barWidth=1.1
         )
 
         barcode_x = x + (cell_width - barcode.width) / 2
-        barcode_y = y + (cell_height * 0.35)
+        barcode_y = y + bottom_padding + (usable_height * 0.45)
 
         barcode.drawOn(c, barcode_x, barcode_y)
 
         # -----------------------------
-        # Text under barcode
+        # Human-readable text
         # -----------------------------
         c.setFont("Helvetica", 8)
         c.setFillColor(colors.black)
 
+        text_y = y + bottom_padding + 5
+
         c.drawCentredString(
             x + cell_width / 2,
-            barcode_y - 12,
+            text_y,
             id_value
         )
 
-    # last page cut lines
+    # final page cut lines
     draw_cut_lines()
     c.save()
 
@@ -108,9 +119,7 @@ st.set_page_config(page_title="A4 Barcode Generator", layout="centered")
 
 st.title("📦 A4 Barcode PDF Generator")
 
-st.write("Upload a CSV or TXT file containing IDs (one per line).")
-
-uploaded_file = st.file_uploader("Upload file", type=["csv", "txt"])
+uploaded_file = st.file_uploader("Upload CSV or TXT file (one ID per line)", type=["csv", "txt"])
 
 cols = st.number_input("Columns per A4 page", min_value=1, max_value=10, value=3)
 rows = st.number_input("Rows per A4 page", min_value=1, max_value=15, value=8)
