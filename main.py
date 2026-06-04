@@ -33,7 +33,7 @@ generate = st.button("Generate PDF")
 
 
 # =========================================================
-# DOTTED LINE (CUT MARKS)
+# DOTTED CUT LINES
 # =========================================================
 
 def dotted_line(c, x1, y1, x2, y2, dash=2 * mm, gap=2 * mm):
@@ -77,7 +77,7 @@ def generate_pdf(ids, rows, cols):
     for _ in range(pages):
 
         # ============================
-        # CUT LINES (ONLY INTERNAL)
+        # CUT LINES (internal only)
         # ============================
 
         c.setLineWidth(0.3)
@@ -108,29 +108,31 @@ def generate_pdf(ids, rows, cols):
             y0 = page_h - margin - (r + 1) * cell_h
 
             # -----------------------------------------
-            # AVAILABLE SPACE INSIDE CELL
+            # AVAILABLE SPACE
             # -----------------------------------------
 
-            max_w = cell_w * 0.95   # almost full width
-            max_h = cell_h * 0.55   # safe height
+            max_w = cell_w * 0.95
+            max_h = cell_h * 0.55
 
             # -----------------------------------------
-            # FORCE FULL WIDTH BARCODE (CORE FIX)
+            # IMPROVED BARCODE FIT (KEY FIX)
             # -----------------------------------------
 
             barcode = code128.Code128(
                 value,
                 barHeight=max_h,
-                barWidth=0.2  # start small, we scale later
+                barWidth=0.18   # slightly tighter bars → wider final output
             )
 
             bw = barcode.width
             bh = barcode.height
 
-            # WIDTH-FIRST SCALING (KEY IDEA)
-            scale = max_w / bw
+            # Small fill boost to reduce visible empty space
+            FILL_FACTOR = 1.06
 
-            # HEIGHT SAFETY CLAMP
+            scale = (max_w * FILL_FACTOR) / bw
+
+            # height safety clamp
             scale = min(scale, max_h / bh)
 
             final_w = bw * scale
