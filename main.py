@@ -1,219 +1,111 @@
 import streamlit as st
-from io import BytesIO
-import math
-
+import pandas as pd
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.graphics.barcode import code128
-from reportlab.lib.units import mm
+from reportlab.lib import colors
+from io import BytesIO
 
-
-# =========================================================
-# UI
-# =========================================================
-
-st.set_page_config(page_title="Barcode Generator", layout="wide")
-
-st.title("📦 Barcode Generator (A4 Label Sheet)")
-
-uploaded_file = st.file_uploader(
-    "Upload TXT/CSV (one ID per line)",
-    type=["txt", "csv"]
-)
-
-col1, col2 = st.columns(2)
-
-with col1:
-    rows = st.number_input("Rows per page", 1, 50, 8)
-
-with col2:
-    cols = st.number_input("Columns per page", 1, 20, 3)
-
-generate = st.button("Generate PDF")
-
-
-# =========================================================
-# DOTTED CUT LINE
-# =========================================================
-
-def dotted_line(c, x1, y1, x2, y2, dash=2 * mm, gap=2 * mm):
-
-    if abs(x1 - x2) < 0.1:
-        y = y1
-        while y < y2:
-            c.line(x1, y, x2, min(y + dash, y2))
-            y += dash + gap
+# ----------------------------
+# Read uploaded file
+# ----------------------------
+def read_ids(uploaded_file):
+    if uploaded_file.name.endswith(".csv"):
+        df = pd.read_csv(uploaded_file, header=None)
+        ids = df.iloc[:, 0].astype(str).tolist()
     else:
-        x = x1
-        while x < x2:
-            c.line(x, y1, min(x + dash, x2), y2)
-            x += dash + gap
+        content = uploaded_file.read().decode("utf-8")
+        ids = [line.strip() for line in content.splitlines() if line.strip()]
+    return ids
 
 
-# =========================================================
-# PDF GENERATION
-# =========================================================
-
-def generate_pdf(ids, rows, cols):
-
+# ----------------------------
+# Generate PDF
+# ----------------------------
+def generate_pdf(ids, cols, rows):
     buffer = BytesIO()
-    page_w, page_h = A4
-
     c = canvas.Canvas(buffer, pagesize=A4)
 
-    margin = 10 * mm
+    page_width, page_height = A4
 
-    usable_w = page_w - 2 * margin
-    usable_h = page_h - 2 * margin
+    cell_width = page_width / cols
+    cell_height = page_height / rows
 
-    cell_w = usable_w / cols
-    cell_h = usable_h / rows
-
-    per_page = rows * cols
-    pages = math.ceil(len(ids) / per_page)
-
-    idx = 0
-
-    for _ in range(pages):
-
-        # ============================
-        # CUT LINES
-        # ============================
-
-        c.setLineWidth(0.3)
-
+    def draw_cut_lines():
+        # vertical lines
         for i in range(1, cols):
-            x = margin + i * cell_w
-            dotted_line(c, x, margin, x, page_h - margin)
+            x = i * cell_width
+            c.setStrokeColor(colors.grey)
+            c.setDash(2, 2)
+            c.line(x, 0, x, page_height)
 
-        for i in range(1, rows):
-            y = margin + i * cell_h
-            dotted_line(c, margin, y, page_w - margin, y)
+        # horizontal lines
+        for j in range(1, rows):
+            y = j * cell_height
+            c.setStrokeColor(colors.grey)
+            c.setDash(2, 2)
+            c.line(0, y, page_width, y)
 
-        # ============================
-        # LABELS
-        # ============================
+        c.setDash()  # reset
 
-        for slot in range(per_page):
+    x = 0
+    y = 0
+    count = 0
 
-            if idx >= len(ids):
-                break
+    for idx, id_value in enumerate(ids):
+        col = count % cols
+        row = count // cols
 
-            value = ids[idx]
+        if count > 0 and count % (cols * rows) == 0:
+            draw_cut_lines()
+            c.showPage()
 
-            r = slot // cols
-            col = slot % cols
+        col = count % cols
+        row = (count // cols) % rows
 
-            x0 = margin + col * cell_w
-            y0 = page_h - margin - (r + 1) * cell_h
+        x = col * cell_width
+        y = page_height - (row + 1) * cell_height
 
-            # -----------------------------------------
-            # AVAILABLE SPACE
-            # -----------------------------------------
+        # Generate barcode
+        barcode = code128.Code128(id_value, barHeight=cell_height * 0.6, barWidth=1)
 
-            max_w = cell_w * 0.96
-            max_h = cell_h * 0.55
+        # Center barcode in cell
+        barcode_x = x + (cell_width - barcode.width) / 2
+        barcode_y = y + (cell_height - barcode.height) / 2
 
-            # -----------------------------------------
-            # BARCODE (FIXED LOGIC)
-            # -----------------------------------------
+        barcode.drawOn(c, barcode_x, barcode_y)
 
-            barcode = code128.Code128(
-                value,
-                barHeight=max_h,
-                barWidth=0.25
-            )
+        count += 1
 
-            bw = barcode.width
-            bh = barcode.height
-
-            # WIDTH-FIRST FIT (correct logic)
-            scale_x = max_w / bw
-            scale_y = max_h / bh
-
-            scale = min(scale_x, scale_y)
-
-            # DO NOT shrink unnecessarily
-            scale = min(scale, 1.0)
-
-            final_w = bw * scale
-            final_h = bh * scale
-
-            # -----------------------------------------
-            # CENTER POSITION
-            # -----------------------------------------
-
-            bx = x0 + (cell_w - final_w) / 2
-            by = y0 + (cell_h - final_h) / 2 + (cell_h * 0.04)
-
-            c.saveState()
-            c.translate(bx, by)
-            c.scale(scale, scale)
-            barcode.drawOn(c, 0, 0)
-            c.restoreState()
-
-            # -----------------------------------------
-            # TEXT
-            # -----------------------------------------
-
-            font_size = max(6, min(10, cell_h / 10))
-
-            c.setFont("Helvetica", font_size)
-
-            c.drawCentredString(
-                x0 + cell_w / 2,
-                y0 + cell_h * 0.12,
-                value
-            )
-
-            idx += 1
-
-        c.showPage()
-
+    draw_cut_lines()
     c.save()
-    buffer.seek(0)
 
+    buffer.seek(0)
     return buffer
 
 
-# =========================================================
-# RUN APP
-# =========================================================
+# ----------------------------
+# Streamlit UI
+# ----------------------------
+st.title("📦 A4 Barcode PDF Generator")
 
-if generate:
+uploaded_file = st.file_uploader("Upload CSV/TXT file (one ID per line)", type=["csv", "txt"])
 
-    if uploaded_file is None:
-        st.error("Please upload a file")
-        st.stop()
+cols = st.number_input("Columns per A4 page", min_value=1, max_value=10, value=3)
+rows = st.number_input("Rows per A4 page", min_value=1, max_value=15, value=8)
 
-    content = uploaded_file.read().decode("utf-8")
+if uploaded_file:
+    ids = read_ids(uploaded_file)
+    st.write(f"Total IDs loaded: {len(ids)}")
 
-    ids = [i.strip() for i in content.splitlines() if i.strip()]
+    if st.button("Generate Barcode PDF"):
+        pdf_file = generate_pdf(ids, cols, rows)
 
-    if not ids:
-        st.error("No IDs found")
-        st.stop()
+        st.success("PDF generated successfully!")
 
-    per_page = rows * cols
-    pages = math.ceil(len(ids) / per_page)
-
-    st.info(
-        f"""
-Total IDs: {len(ids)}
-Labels per page: {per_page}
-Pages: {pages}
-"""
-    )
-
-    with st.spinner("Generating PDF..."):
-
-        pdf = generate_pdf(ids, rows, cols)
-
-    st.success("PDF generated successfully!")
-
-    st.download_button(
-        "Download PDF",
-        pdf,
-        file_name="barcode_labels.pdf",
-        mime="application/pdf"
-    )
+        st.download_button(
+            label="⬇ Download PDF",
+            data=pdf_file,
+            file_name="barcodes_a4.pdf",
+            mime="application/pdf"
+        )
