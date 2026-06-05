@@ -1,3 +1,4 @@
+```python
 import streamlit as st
 import pandas as pd
 from io import BytesIO
@@ -39,12 +40,12 @@ def generate_pdf(ids, cols, rows):
         c.setStrokeColor(colors.grey)
         c.setDash(2, 2)
 
-        # vertical lines
+        # Vertical cut lines
         for i in range(1, cols):
             x = i * cell_width
             c.line(x, 0, x, page_height)
 
-        # horizontal lines
+        # Horizontal cut lines
         for j in range(1, rows):
             y = j * cell_height
             c.line(0, y, page_width, y)
@@ -65,31 +66,60 @@ def generate_pdf(ids, cols, rows):
         x = col * cell_width
         y = page_height - (row + 1) * cell_height
 
-        # -----------------------------
-        # Barcode (centered perfectly)
-        # -----------------------------
-        barcode = code128.Code128(
+        center_x = x + cell_width / 2
+
+        # =====================================
+        # Main Barcode
+        # =====================================
+        main_barcode = code128.Code128(
             id_value,
-            barHeight=cell_height * 0.55,
+            barHeight=cell_height * 0.30,
             barWidth=1.1
         )
 
-        barcode_x = x + (cell_width - barcode.width) / 2
-        barcode_y = y + (cell_height - barcode.height) / 2 + 5
+        main_x = x + (cell_width - main_barcode.width) / 2
+        main_y = y + cell_height * 0.48
 
-        barcode.drawOn(c, barcode_x, barcode_y)
+        main_barcode.drawOn(c, main_x, main_y)
 
-        # -----------------------------
-        # ID text (centered below barcode)
-        # -----------------------------
-        c.setFont("Helvetica", 8)
+        # Value below main barcode
         c.setFillColor(colors.black)
-
-        text_y = barcode_y - 12
-
+        c.setFont("Helvetica", 8)
         c.drawCentredString(
-            x + cell_width / 2,
-            text_y,
+            center_x,
+            main_y - 12,
+            id_value
+        )
+
+        # =====================================
+        # DTDC Text
+        # =====================================
+        c.setFont("Helvetica-Bold", 8)
+        c.drawCentredString(
+            center_x,
+            y + cell_height * 0.24,
+            "DTDC"
+        )
+
+        # =====================================
+        # Smaller Barcode
+        # =====================================
+        small_barcode = code128.Code128(
+            id_value,
+            barHeight=cell_height * 0.10,
+            barWidth=0.6
+        )
+
+        small_x = x + (cell_width - small_barcode.width) / 2
+        small_y = y + cell_height * 0.12
+
+        small_barcode.drawOn(c, small_x, small_y)
+
+        # Value below small barcode
+        c.setFont("Helvetica", 6)
+        c.drawCentredString(
+            center_x,
+            small_y - 8,
             id_value
         )
 
@@ -103,14 +133,31 @@ def generate_pdf(ids, cols, rows):
 # -----------------------------
 # Streamlit UI
 # -----------------------------
-st.set_page_config(page_title="A4 Barcode Generator", layout="centered")
+st.set_page_config(
+    page_title="A4 Barcode Generator",
+    layout="centered"
+)
 
 st.title("📦 A4 Barcode PDF Generator")
 
-uploaded_file = st.file_uploader("Upload CSV or TXT file (one ID per line)", type=["csv", "txt"])
+uploaded_file = st.file_uploader(
+    "Upload CSV or TXT file (one ID per line)",
+    type=["csv", "txt"]
+)
 
-cols = st.number_input("Columns per A4 page", min_value=1, max_value=10, value=3)
-rows = st.number_input("Rows per A4 page", min_value=1, max_value=15, value=8)
+cols = st.number_input(
+    "Columns per A4 page",
+    min_value=1,
+    max_value=10,
+    value=3
+)
+
+rows = st.number_input(
+    "Rows per A4 page",
+    min_value=1,
+    max_value=15,
+    value=8
+)
 
 if uploaded_file:
 
@@ -130,3 +177,4 @@ if uploaded_file:
             file_name="a4_barcodes.pdf",
             mime="application/pdf"
         )
+```
