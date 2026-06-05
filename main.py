@@ -1,4 +1,3 @@
-```python
 import streamlit as st
 import pandas as pd
 from io import BytesIO
@@ -177,4 +176,3 @@ if uploaded_file:
             file_name="a4_barcodes.pdf",
             mime="application/pdf"
         )
-```
