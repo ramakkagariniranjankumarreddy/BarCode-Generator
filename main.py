@@ -115,7 +115,7 @@ def generate_pdf(ids, cols, rows):
         # =====================================
         # DTDC Text below cut mark
         # =====================================
-        c.setFont("Helvetica-Bold", main_label_font)
+        c.setFont("Helvetica-Bold", small_label_font)
         c.drawCentredString(center_x, cut_y - main_label_font - gap, "DTDC - Nehru Bazaar")
 
         # =====================================
