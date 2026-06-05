@@ -7,7 +7,6 @@ from reportlab.lib.pagesizes import A4
 from reportlab.graphics.barcode import code128
 from reportlab.lib import colors
 
-
 # -----------------------------
 # Read file (CSV/TXT)
 # -----------------------------
@@ -19,7 +18,6 @@ def read_ids(uploaded_file):
         content = uploaded_file.read().decode("utf-8")
         ids = [line.strip() for line in content.splitlines() if line.strip()]
     return ids
-
 
 # -----------------------------
 # Generate PDF
@@ -68,6 +66,16 @@ def generate_pdf(ids, cols, rows):
         center_x = x + cell_width / 2
 
         # =====================================
+        # DTDC Text above large barcode
+        # =====================================
+        c.setFont("Helvetica-Bold", 8)
+        c.drawCentredString(
+            center_x,
+            y + cell_height * 0.75,  # slightly below top of cell
+            "DTDC - Nehru Bazaar"
+        )
+
+        # =====================================
         # Main Barcode
         # =====================================
         main_barcode = code128.Code128(
@@ -77,7 +85,7 @@ def generate_pdf(ids, cols, rows):
         )
 
         main_x = x + (cell_width - main_barcode.width) / 2
-        main_y = y + cell_height * 0.48
+        main_y = y + cell_height * 0.45
 
         main_barcode.drawOn(c, main_x, main_y)
 
@@ -93,7 +101,7 @@ def generate_pdf(ids, cols, rows):
         # =====================================
         # Small Dashed Cut Mark
         # =====================================
-        cut_y = y + cell_height * 0.32
+        cut_y = y + cell_height * 0.28
 
         c.setStrokeColor(colors.black)
         c.setLineWidth(0.5)
@@ -107,16 +115,6 @@ def generate_pdf(ids, cols, rows):
         )
 
         c.setDash()
-
-        # =====================================
-        # DTDC Text
-        # =====================================
-        c.setFont("Helvetica-Bold", 8)
-        c.drawCentredString(
-            center_x,
-            y + cell_height * 0.24,
-            "DTDC - Nehru Bazaar"
-        )
 
         # =====================================
         # Smaller Barcode
@@ -133,7 +131,7 @@ def generate_pdf(ids, cols, rows):
         small_barcode.drawOn(c, small_x, small_y)
 
         # Value below small barcode
-        c.setFont("Helvetica", 6)
+        c.setFont("Helvetica", 7)
         c.drawCentredString(
             center_x,
             small_y - 8,
@@ -145,7 +143,6 @@ def generate_pdf(ids, cols, rows):
 
     buffer.seek(0)
     return buffer
-
 
 # -----------------------------
 # Streamlit UI
