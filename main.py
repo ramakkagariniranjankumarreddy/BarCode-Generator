@@ -91,13 +91,31 @@ def generate_pdf(ids, cols, rows):
         )
 
         # =====================================
+        # Small Dashed Cut Mark
+        # =====================================
+        cut_y = y + cell_height * 0.32
+
+        c.setStrokeColor(colors.black)
+        c.setLineWidth(0.5)
+        c.setDash(2, 2)
+
+        c.line(
+            center_x - 30,
+            cut_y,
+            center_x + 30,
+            cut_y
+        )
+
+        c.setDash()
+
+        # =====================================
         # DTDC Text
         # =====================================
         c.setFont("Helvetica-Bold", 8)
         c.drawCentredString(
             center_x,
             y + cell_height * 0.24,
-            "DTDC"
+            "DTDC - Nehru Bazaar"
         )
 
         # =====================================
@@ -133,11 +151,11 @@ def generate_pdf(ids, cols, rows):
 # Streamlit UI
 # -----------------------------
 st.set_page_config(
-    page_title="A4 Barcode Generator",
+    page_title="Bar Code Generator (DTDC - Nehru Bazaar)",
     layout="centered"
 )
 
-st.title("📦 A4 Barcode PDF Generator")
+st.title("Bar Code Generator (DTDC - Nehru Bazaar)")
 
 uploaded_file = st.file_uploader(
     "Upload CSV or TXT file (one ID per line)",
