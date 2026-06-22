@@ -42,10 +42,10 @@ def generate_pdf(ids):
     items_per_page = cols * rows
 
     # FIXED OUTER MARGINS
-    top_margin = 4.25 * mm
-    bottom_margin = 4.25 * mm
-    left_margin = 9 * mm
-    right_margin = 9 * mm
+    top_margin = 3 * mm
+    bottom_margin = 3 * mm
+    left_margin = 5 * mm
+    right_margin = 5 * mm
 
     # =========================
     # AVAILABLE SPACE
