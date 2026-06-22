@@ -28,7 +28,7 @@ def generate_pdf(ids):
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
 
-    page_width, page_height = A4
+    page_width, page_height = A4  # mm via reportlab points internally
 
     # =========================
     # GRID CONFIG (FIXED)
@@ -42,40 +42,21 @@ def generate_pdf(ids):
     items_per_page = cols * rows
 
     # =========================
-    # FIXED MARGINS
+    # MARGINS (UPDATED)
     # =========================
-    top_margin = 3 * mm
-    bottom_margin = 3 * mm
-    left_margin = 5 * mm
-    right_margin = 5 * mm
+    top_margin = 2 * mm
+    bottom_margin = 2 * mm
+    left_margin = 6 * mm
+    right_margin = 6 * mm
 
     # =========================
-    # USABLE AREA
+    # GAPS (FIXED AS REQUESTED)
     # =========================
-    usable_width = page_width - left_margin - right_margin
-    usable_height = page_height - top_margin - bottom_margin
+    col_gap = 2 * mm
+    row_gap = 1 * mm
 
     # =========================
-    # TOTAL LABEL AREA
-    # =========================
-    total_label_width = cols * label_width
-    total_label_height = rows * label_height
-
-    # =========================
-    # EVEN GAP DISTRIBUTION (FIXED LOGIC)
-    # =========================
-    col_gap = (
-        (usable_width - total_label_width) / (cols - 1)
-        if cols > 1 else 0
-    )
-
-    row_gap = (
-        (usable_height - total_label_height) / (rows - 1)
-        if rows > 1 else 0
-    )
-
-    # =========================
-    # GRID START POSITION
+    # START POSITION
     # =========================
     start_x = left_margin
     start_y = page_height - top_margin
@@ -91,7 +72,7 @@ def generate_pdf(ids):
         row = pos // cols
 
         # =========================
-        # PERFECT GRID POSITIONING
+        # GRID POSITIONING
         # =========================
         x = start_x + col * (label_width + col_gap)
         y = start_y - (row * (label_height + row_gap)) - label_height
@@ -108,7 +89,7 @@ def generate_pdf(ids):
         # -------------------------
         # HEADER
         # -------------------------
-        c.setFont("Helvetica-Bold", 6)
+        c.setFont("Helvetica-Bold", 5)
         c.drawCentredString(center_x, top_zone, "DTDC- Nehru Bazaar")
 
         # -------------------------
