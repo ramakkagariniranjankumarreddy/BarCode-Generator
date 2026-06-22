@@ -46,21 +46,6 @@ def generate_pdf(ids):
     grid_width = cols * label_width
     grid_height = rows * label_height
 
-    def draw_cut_lines():
-        c.setStrokeColor(colors.lightgrey)
-        c.setDash(2, 2)
-
-        # vertical lines
-        for i in range(1, cols):
-            x = x_margin + i * label_width
-            c.line(x, y_margin, x, y_margin + grid_height)
-
-        # horizontal lines
-        for j in range(1, rows):
-            y = y_margin + j * label_height
-            c.line(x_margin, y, x_margin + grid_width, y)
-
-        c.setDash()
 
     for idx, id_value in enumerate(ids):
 
@@ -112,7 +97,7 @@ def generate_pdf(ids):
         c.setFont("Helvetica", 6)
         c.drawCentredString(center_x, number_zone, id_value)
 
-    draw_cut_lines()
+
     c.save()
 
     buffer.seek(0)
