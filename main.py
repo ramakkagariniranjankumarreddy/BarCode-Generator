@@ -77,7 +77,7 @@ def generate_pdf(ids):
         barcode = code128.Code128(
             id_value,
             barHeight=9 * mm,
-            barWidth=1.2
+            barWidth= 0.9
         )
 
         barcode_x = x + (label_width - barcode.width) / 2
