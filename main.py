@@ -5,7 +5,6 @@ from io import BytesIO
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.graphics.barcode import code128
-from reportlab.lib import colors
 from reportlab.lib.units import mm
 
 
@@ -43,16 +42,11 @@ def generate_pdf(ids):
     x_margin = 9 * mm
     y_margin = 4.25 * mm
 
-    grid_width = cols * label_width
-    grid_height = rows * label_height
-
-
     for idx, id_value in enumerate(ids):
 
         pos = idx % items_per_page
 
         if idx > 0 and pos == 0:
-            draw_cut_lines()
             c.showPage()
 
         col = pos % cols
@@ -67,23 +61,23 @@ def generate_pdf(ids):
         # ZONE DEFINITIONS (20 mm LABEL)
         # =========================
 
-        top_zone = y + label_height - 4 * mm        # DTDC header zone (top 4mm safe area)
-        barcode_zone = y + 6 * mm                   # barcode starts around lower-middle
-        number_zone = y + 2 * mm                    # bottom 5mm zone approx
+        top_zone = y + label_height - 4 * mm   # DTDC header zone
+        barcode_zone = y + 6 * mm              # barcode placement
+        number_zone = y + 2 * mm               # label number zone
 
         # -------------------------
-        # HEADER (DTDC NEHRU BAZAAR)
+        # HEADER
         # -------------------------
         c.setFont("Helvetica-Bold", 5)
         c.drawCentredString(center_x, top_zone, "DTDC- Nehru Bazaar")
 
         # -------------------------
-        # BARCODE (9 mm height, 0.55 factor)
+        # BARCODE
         # -------------------------
         barcode = code128.Code128(
             id_value,
             barHeight=9 * mm,
-            barWidth=0.55
+            barWidth=0.7
         )
 
         barcode_x = x + (label_width - barcode.width) / 2
@@ -92,11 +86,10 @@ def generate_pdf(ids):
         barcode.drawOn(c, barcode_x, barcode_y)
 
         # -------------------------
-        # LABEL NUMBER (5 mm zone)
+        # LABEL NUMBER
         # -------------------------
         c.setFont("Helvetica", 6)
         c.drawCentredString(center_x, number_zone, id_value)
-
 
     c.save()
 
@@ -112,7 +105,7 @@ st.set_page_config(
     layout="centered"
 )
 
-st.title("DTDC Barcode Generator (48×20 mm Layout Fixed)")
+st.title("DTDC Barcode Generator (48×20 mm Fixed Layout)")
 
 uploaded_file = st.file_uploader(
     "Upload CSV or TXT file (one ID per line)",
@@ -133,6 +126,6 @@ if uploaded_file:
         st.download_button(
             label="⬇ Download Barcode PDF",
             data=pdf_buffer,
-            file_name="DTDC_barcodes_fixed.pdf",
+            file_name="DTDC_barcodes.pdf",
             mime="application/pdf"
         )
