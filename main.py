@@ -58,7 +58,7 @@ def generate_pdf(ids):
     # =========================
     # INTERNAL PADDING (NEW)
     # =========================
-    cell_padding_x = 5 * mm  # LEFT + RIGHT padding inside each cell
+    cell_padding_x = 2.5 * mm  # LEFT + RIGHT padding inside each cell
 
     # =========================
     # START POSITION
