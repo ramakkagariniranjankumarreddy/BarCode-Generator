@@ -15,15 +15,14 @@ from reportlab.lib.units import mm
 def read_ids(uploaded_file):
     if uploaded_file.name.endswith(".csv"):
         df = pd.read_csv(uploaded_file, header=None)
-        ids = df.iloc[:, 0].astype(str).tolist()
+        return df.iloc[:, 0].astype(str).tolist()
     else:
         content = uploaded_file.read().decode("utf-8")
-        ids = [line.strip() for line in content.splitlines() if line.strip()]
-    return ids
+        return [line.strip() for line in content.splitlines() if line.strip()]
 
 
 # -----------------------------
-# Generate PDF (FIXED NJ MPL 56L)
+# Generate PDF
 # -----------------------------
 def generate_pdf(ids):
 
@@ -32,20 +31,15 @@ def generate_pdf(ids):
 
     page_width, page_height = A4
 
-    # =========================
-    # FIXED LABEL SPEC
-    # =========================
+    # LABEL SIZE
     label_width = 48 * mm
     label_height = 20 * mm
 
     cols = 4
     rows = 14
-
     items_per_page = cols * rows
 
-    # =========================
-    # FIXED MARGINS (NJ MPL)
-    # =========================
+    # MARGINS
     x_margin = 9 * mm
     y_margin = 4.25 * mm
 
@@ -85,31 +79,38 @@ def generate_pdf(ids):
         center_x = x + label_width / 2
 
         # =========================
-        # CONTENT SETTINGS
+        # ZONE DEFINITIONS (20 mm LABEL)
         # =========================
-        header_font = 5
-        value_font = 6
-        barcode_height = 8 * mm
 
-        # HEADER
-        c.setFont("Helvetica-Bold", header_font)
-        c.drawCentredString(center_x, y + label_height - 6, "DTDC- Nehru Bazaar")
+        top_zone = y + label_height - 4 * mm        # DTDC header zone (top 4mm safe area)
+        barcode_zone = y + 6 * mm                   # barcode starts around lower-middle
+        number_zone = y + 2 * mm                    # bottom 5mm zone approx
 
-        # BARCODE
+        # -------------------------
+        # HEADER (DTDC NEHRU BAZAAR)
+        # -------------------------
+        c.setFont("Helvetica-Bold", 5)
+        c.drawCentredString(center_x, top_zone, "DTDC- Nehru Bazaar")
+
+        # -------------------------
+        # BARCODE (9 mm height, 0.55 factor)
+        # -------------------------
         barcode = code128.Code128(
             id_value,
-            barHeight=barcode_height,
-            barWidth=0.45
+            barHeight=9 * mm,
+            barWidth=0.55
         )
 
         barcode_x = x + (label_width - barcode.width) / 2
-        barcode_y = y + 5
+        barcode_y = barcode_zone
 
         barcode.drawOn(c, barcode_x, barcode_y)
 
-        # VALUE
-        c.setFont("Helvetica", value_font)
-        c.drawCentredString(center_x, barcode_y - 10, id_value)
+        # -------------------------
+        # LABEL NUMBER (5 mm zone)
+        # -------------------------
+        c.setFont("Helvetica", 6)
+        c.drawCentredString(center_x, number_zone, id_value)
 
     draw_cut_lines()
     c.save()
@@ -122,11 +123,11 @@ def generate_pdf(ids):
 # Streamlit UI
 # -----------------------------
 st.set_page_config(
-    page_title="DTDC Barcode Generator (NJ MPL 56L)",
+    page_title="DTDC Barcode Generator",
     layout="centered"
 )
 
-st.title("DTDC Barcode Generator (NJ MPL 56L - 48×20mm Fixed Layout)")
+st.title("DTDC Barcode Generator (48×20 mm Layout Fixed)")
 
 uploaded_file = st.file_uploader(
     "Upload CSV or TXT file (one ID per line)",
@@ -147,6 +148,6 @@ if uploaded_file:
         st.download_button(
             label="⬇ Download Barcode PDF",
             data=pdf_buffer,
-            file_name="NJ_MPL_56L_barcodes.pdf",
+            file_name="DTDC_barcodes_fixed.pdf",
             mime="application/pdf"
         )
