@@ -31,7 +31,7 @@ def generate_pdf(ids):
     page_width, page_height = A4
 
     # =========================
-    # GRID CONFIG
+    # GRID CONFIG (FIXED)
     # =========================
     cols = 4
     rows = 14
@@ -41,28 +41,42 @@ def generate_pdf(ids):
 
     items_per_page = cols * rows
 
-    # FIXED OUTER MARGINS
+    # =========================
+    # FIXED MARGINS
+    # =========================
     top_margin = 3 * mm
     bottom_margin = 3 * mm
     left_margin = 5 * mm
     right_margin = 5 * mm
 
     # =========================
-    # AVAILABLE SPACE
+    # USABLE AREA
     # =========================
     usable_width = page_width - left_margin - right_margin
     usable_height = page_height - top_margin - bottom_margin
 
     # =========================
-    # REMAINING SPACE DISTRIBUTION
+    # TOTAL LABEL AREA
     # =========================
     total_label_width = cols * label_width
     total_label_height = rows * label_height
 
-    col_gap = (usable_width - total_label_width) / cols if cols > 1 else 0
-    row_gap = (usable_height - total_label_height) / rows if rows > 1 else 0
+    # =========================
+    # EVEN GAP DISTRIBUTION (FIXED LOGIC)
+    # =========================
+    col_gap = (
+        (usable_width - total_label_width) / (cols - 1)
+        if cols > 1 else 0
+    )
 
-    # start origin (top-left of grid)
+    row_gap = (
+        (usable_height - total_label_height) / (rows - 1)
+        if rows > 1 else 0
+    )
+
+    # =========================
+    # GRID START POSITION
+    # =========================
     start_x = left_margin
     start_y = page_height - top_margin
 
@@ -76,13 +90,16 @@ def generate_pdf(ids):
         col = pos % cols
         row = pos // cols
 
+        # =========================
+        # PERFECT GRID POSITIONING
+        # =========================
         x = start_x + col * (label_width + col_gap)
-        y = start_y - (row + 1) * label_height - row * row_gap
+        y = start_y - (row * (label_height + row_gap)) - label_height
 
         center_x = x + label_width / 2
 
         # =========================
-        # ZONES (20 mm LABEL HEIGHT)
+        # ZONES INSIDE LABEL
         # =========================
         top_zone = y + label_height - 4 * mm
         barcode_zone = y + 6 * mm
@@ -91,7 +108,7 @@ def generate_pdf(ids):
         # -------------------------
         # HEADER
         # -------------------------
-        c.setFont("Helvetica-Bold", 5)
+        c.setFont("Helvetica-Bold", 6)
         c.drawCentredString(center_x, top_zone, "DTDC- Nehru Bazaar")
 
         # -------------------------
