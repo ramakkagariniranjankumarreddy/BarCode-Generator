@@ -59,8 +59,8 @@ def generate_pdf(ids):
     total_label_width = cols * label_width
     total_label_height = rows * label_height
 
-    col_gap = (usable_width - total_label_width) / (cols - 1) if cols > 1 else 0
-    row_gap = (usable_height - total_label_height) / (rows - 1) if rows > 1 else 0
+    col_gap = (usable_width - total_label_width) / cols if cols > 1 else 0
+    row_gap = (usable_height - total_label_height) / rows if rows > 1 else 0
 
     # start origin (top-left of grid)
     start_x = left_margin
