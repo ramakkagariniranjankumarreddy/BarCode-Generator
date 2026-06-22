@@ -23,7 +23,7 @@ def read_ids(uploaded_file):
 
 
 # -----------------------------
-# Generate PDF (NJ MPL 56L)
+# Generate PDF (FIXED NJ MPL 56L)
 # -----------------------------
 def generate_pdf(ids):
 
@@ -33,17 +33,18 @@ def generate_pdf(ids):
     page_width, page_height = A4
 
     # =========================
-    # LABEL SPECS (NJ MPL 56L)
+    # FIXED LABEL SPEC
     # =========================
     label_width = 48 * mm
     label_height = 20 * mm
 
     cols = 4
     rows = 14
+
     items_per_page = cols * rows
 
     # =========================
-    # CORRECT PRINT MARGINS
+    # FIXED MARGINS (NJ MPL)
     # =========================
     x_margin = 9 * mm
     y_margin = 4.25 * mm
@@ -71,7 +72,6 @@ def generate_pdf(ids):
 
         pos = idx % items_per_page
 
-        # new page
         if idx > 0 and pos == 0:
             draw_cut_lines()
             c.showPage()
@@ -85,25 +85,17 @@ def generate_pdf(ids):
         center_x = x + label_width / 2
 
         # =========================
-        # FONT SETTINGS
+        # CONTENT SETTINGS
         # =========================
         header_font = 5
         value_font = 6
         barcode_height = 8 * mm
 
-        # =========================
         # HEADER
-        # =========================
         c.setFont("Helvetica-Bold", header_font)
-        c.drawCentredString(
-            center_x,
-            y + label_height - 6,
-            "DTDC- Nehru Bazaar"
-        )
+        c.drawCentredString(center_x, y + label_height - 6, "DTDC- Nehru Bazaar")
 
-        # =========================
         # BARCODE
-        # =========================
         barcode = code128.Code128(
             id_value,
             barHeight=barcode_height,
@@ -115,15 +107,9 @@ def generate_pdf(ids):
 
         barcode.drawOn(c, barcode_x, barcode_y)
 
-        # =========================
-        # VALUE BELOW BARCODE
-        # =========================
+        # VALUE
         c.setFont("Helvetica", value_font)
-        c.drawCentredString(
-            center_x,
-            barcode_y - 10,
-            id_value
-        )
+        c.drawCentredString(center_x, barcode_y - 10, id_value)
 
     draw_cut_lines()
     c.save()
@@ -140,7 +126,7 @@ st.set_page_config(
     layout="centered"
 )
 
-st.title("DTDC Barcode Generator (NJ MPL 56L - 48×20mm)")
+st.title("DTDC Barcode Generator (NJ MPL 56L - 48×20mm Fixed Layout)")
 
 uploaded_file = st.file_uploader(
     "Upload CSV or TXT file (one ID per line)",
