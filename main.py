@@ -6,6 +6,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.graphics.barcode import code128
 from reportlab.lib import colors
+from reportlab.lib.units import mm
 
 
 # -----------------------------
@@ -22,32 +23,47 @@ def read_ids(uploaded_file):
 
 
 # -----------------------------
-# Generate PDF
+# Generate PDF (NJ MPL 56L)
 # -----------------------------
-def generate_pdf(ids, cols, rows):
+def generate_pdf(ids):
+
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
 
     page_width, page_height = A4
 
-    cell_width = page_width / cols
-    cell_height = page_height / rows
+    # =========================
+    # LABEL SPECS (NJ MPL 56L)
+    # =========================
+    label_width = 48 * mm
+    label_height = 20 * mm
 
+    cols = 4
+    rows = 14
     items_per_page = cols * rows
 
+    # =========================
+    # CORRECT PRINT MARGINS
+    # =========================
+    x_margin = 9 * mm
+    y_margin = 4.25 * mm
+
+    grid_width = cols * label_width
+    grid_height = rows * label_height
+
     def draw_cut_lines():
-        c.setStrokeColor(colors.grey)
+        c.setStrokeColor(colors.lightgrey)
         c.setDash(2, 2)
 
-        # Vertical cut lines
+        # vertical lines
         for i in range(1, cols):
-            x = i * cell_width
-            c.line(x, 0, x, page_height)
+            x = x_margin + i * label_width
+            c.line(x, y_margin, x, y_margin + grid_height)
 
-        # Horizontal cut lines
+        # horizontal lines
         for j in range(1, rows):
-            y = j * cell_height
-            c.line(0, y, page_width, y)
+            y = y_margin + j * label_height
+            c.line(x_margin, y, x_margin + grid_width, y)
 
         c.setDash()
 
@@ -55,6 +71,7 @@ def generate_pdf(ids, cols, rows):
 
         pos = idx % items_per_page
 
+        # new page
         if idx > 0 and pos == 0:
             draw_cut_lines()
             c.showPage()
@@ -62,77 +79,51 @@ def generate_pdf(ids, cols, rows):
         col = pos % cols
         row = pos // cols
 
-        x = col * cell_width
-        y = page_height - (row + 1) * cell_height
+        x = x_margin + col * label_width
+        y = page_height - y_margin - (row + 1) * label_height
 
-        center_x = x + cell_width / 2
+        center_x = x + label_width / 2
 
-        # -----------------------------
-        # Dynamic sizes based on cell
-        # -----------------------------
-        header_font_size = cell_height * 0.08  # Header font
-        main_barcode_height = cell_height * 0.30
-        main_label_font = cell_height * 0.08
-        small_barcode_height = cell_height * 0.10
-        small_label_font = cell_height * 0.06
-        gap = cell_height * 0.03  # gap between elements
+        # =========================
+        # FONT SETTINGS
+        # =========================
+        header_font = 5
+        value_font = 6
+        barcode_height = 8 * mm
 
-        # =====================================
-        # DTDC Header above Main Barcode
-        # =====================================
-        header_text = "DTDC Nehru Bazaar"
-        c.setFont("Helvetica-Bold", header_font_size)
-        header_y = y + cell_height - header_font_size - gap
-        c.drawCentredString(center_x, header_y, header_text)
-
-        # =====================================
-        # Main Barcode
-        # =====================================
-        main_barcode = code128.Code128(
-            id_value,
-            barHeight=main_barcode_height,
-            barWidth=1.1
+        # =========================
+        # HEADER
+        # =========================
+        c.setFont("Helvetica-Bold", header_font)
+        c.drawCentredString(
+            center_x,
+            y + label_height - 6,
+            "DTDC- Nehru Bazaar"
         )
-        main_x = x + (cell_width - main_barcode.width) / 2
-        main_y = header_y - main_barcode_height - gap
-        main_barcode.drawOn(c, main_x, main_y)
 
-        # Value below main barcode
-        c.setFillColor(colors.black)
-        c.setFont("Helvetica", main_label_font)
-        c.drawCentredString(center_x, main_y - main_label_font - gap, id_value)
-
-        # =====================================
-        # Small Dashed Cut Mark
-        # =====================================
-        cut_y = y + cell_height * 0.32
-        c.setStrokeColor(colors.black)
-        c.setLineWidth(0.5)
-        c.setDash(2, 2)
-        c.line(center_x - 30, cut_y, center_x + 30, cut_y)
-        c.setDash()
-
-        # =====================================
-        # DTDC Text below cut mark
-        # =====================================
-        c.setFont("Helvetica-Bold", small_label_font)
-        c.drawCentredString(center_x, cut_y - small_label_font - gap, "DTDC - Nehru Bazaar")
-
-        # =====================================
-        # Smaller Barcode at bottom
-        # =====================================
-        small_barcode = code128.Code128(
+        # =========================
+        # BARCODE
+        # =========================
+        barcode = code128.Code128(
             id_value,
-            barHeight=small_barcode_height,
-            barWidth=0.6
+            barHeight=barcode_height,
+            barWidth=0.45
         )
-        small_x = x + (cell_width - small_barcode.width) / 2
-        small_y = y + cell_height * 0.12
-        small_barcode.drawOn(c, small_x, small_y)
 
-        # Value below small barcode
-        c.setFont("Helvetica", small_label_font)
-        c.drawCentredString(center_x, small_y - small_label_font - gap, id_value)
+        barcode_x = x + (label_width - barcode.width) / 2
+        barcode_y = y + 5
+
+        barcode.drawOn(c, barcode_x, barcode_y)
+
+        # =========================
+        # VALUE BELOW BARCODE
+        # =========================
+        c.setFont("Helvetica", value_font)
+        c.drawCentredString(
+            center_x,
+            barcode_y - 10,
+            id_value
+        )
 
     draw_cut_lines()
     c.save()
@@ -145,46 +136,31 @@ def generate_pdf(ids, cols, rows):
 # Streamlit UI
 # -----------------------------
 st.set_page_config(
-    page_title="Bar Code Generator (DTDC - Nehru Bazaar)",
+    page_title="DTDC Barcode Generator (NJ MPL 56L)",
     layout="centered"
 )
 
-st.title("Bar Code Generator (DTDC - Nehru Bazaar)")
+st.title("DTDC Barcode Generator (NJ MPL 56L - 48×20mm)")
 
 uploaded_file = st.file_uploader(
     "Upload CSV or TXT file (one ID per line)",
     type=["csv", "txt"]
 )
 
-cols = st.number_input(
-    "Columns per A4 page",
-    min_value=1,
-    max_value=10,
-    value=3
-)
-
-rows = st.number_input(
-    "Rows per A4 page",
-    min_value=1,
-    max_value=15,
-    value=8
-)
-
 if uploaded_file:
 
     ids = read_ids(uploaded_file)
-
     st.success(f"Loaded {len(ids)} IDs")
 
     if st.button("Generate PDF"):
 
-        pdf_buffer = generate_pdf(ids, cols, rows)
+        pdf_buffer = generate_pdf(ids)
 
         st.success("PDF generated successfully!")
 
         st.download_button(
             label="⬇ Download Barcode PDF",
             data=pdf_buffer,
-            file_name="a4_barcodes.pdf",
+            file_name="NJ_MPL_56L_barcodes.pdf",
             mime="application/pdf"
         )
